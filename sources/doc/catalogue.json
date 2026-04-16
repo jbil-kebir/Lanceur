@@ -1,0 +1,37 @@
+{
+  "categories": [
+    {
+      "id": "scolarite",
+      "label": "Scolarité",
+      "shortcuts": [
+        { "id": "onisep",     "label": "Onisep",         "url": "https://www.onisep.fr" },
+        { "id": "parcoursup", "label": "Parcoursup",     "url": "https://www.parcoursup.fr" }
+      ]
+    },
+    {
+      "id": "famille_sante",
+      "label": "Famille / Santé",
+      "shortcuts": [
+        { "id": "ameli", "label": "Ameli",            "url": "https://www.ameli.fr" },
+        { "id": "mes",   "label": "Mon Espace Santé", "url": "https://www.monespacesante.fr" },
+        { "id": "caf",   "label": "CAF",              "url": "https://www.caf.fr" }
+      ]
+    },
+    {
+      "id": "administration",
+      "label": "Administration",
+      "shortcuts": [
+        { "id": "spublic", "label": "Service-Public", "url": "https://www.service-public.fr" },
+        { "id": "impots",  "label": "Impôts",         "url": "https://www.impots.gouv.fr" }
+      ]
+    },
+    {
+      "id": "associations_pro",
+      "label": "Associations / Pro",
+      "shortcuts": [
+        { "id": "urssaf", "label": "URSSAF", "url": "https://www.urssaf.fr" },
+        { "id": "inpi",   "label": "INPI",   "url": "https://www.inpi.fr" }
+      ]
+    }
+  ]
+}

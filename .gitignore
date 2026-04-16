@@ -43,3 +43,5 @@ app.*.map.json
 **/android/local.properties
 **/android/.gradle/
 **/android/.kotlin/
+
+sources/doc/log.txt

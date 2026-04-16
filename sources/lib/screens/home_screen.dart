@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -5,10 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../models/catalogue.dart';
 import '../models/raccourci.dart';
 import '../services/export_service.dart';
 import '../services/storage_service.dart';
+import 'catalogue_screen.dart';
 import 'webview_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Raccourci> _raccourcis = [];
   bool _vueGrille = true;
   bool _modeReorganisation = false;
+  bool _backupAutoDisponible = false;
 
   @override
   void initState() {
@@ -32,7 +37,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _charger() async {
     final data = await _storage.charger();
-    setState(() => _raccourcis = data);
+    final chemin = await _cheminBackupAuto();
+    setState(() {
+      _raccourcis = data;
+      _backupAutoDisponible = File(chemin).existsSync();
+    });
   }
 
   Future<void> _sauvegarder() async {
@@ -397,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Nom de fichier par défaut, modifiable par l'utilisateur
     final now = DateTime.now();
     final nomDefaut =
-        'lanceur_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}'
+        'sesame_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}'
         '_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
     final nomController = TextEditingController(text: nomDefaut);
 
@@ -452,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Sauvegarde Lanceur');
+      await Share.shareXFiles([XFile(file.path)], text: 'Sauvegarde Sésame');
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
@@ -572,16 +581,183 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ─── Effacement + backup auto ────────────────────────────────────────────
+
+  Future<String> _cheminBackupAuto() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return '${dir.path}/backup_auto.json';
+  }
+
+  Future<void> _effacerTousLesRaccourcis() async {
+    if (_raccourcis.isEmpty) return;
+
+    final chemin = await _cheminBackupAuto();
+    await File(chemin).writeAsString(
+      jsonEncode(_raccourcis.map((r) => r.toJson()).toList()),
+    );
+
+    if (!mounted) return;
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tout effacer'),
+        content: Text(
+          'Sauvegarde créée.\n\nEffacer les ${_raccourcis.length} raccourci(s) ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child:
+                const Text('Effacer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+
+    await _storage.effacerRaccourcis();
+    setState(() {
+      _raccourcis = [];
+      _backupAutoDisponible = true;
+    });
+  }
+
+  Future<void> _restaurerBackupAuto() async {
+    final chemin = await _cheminBackupAuto();
+    final file = File(chemin);
+    if (!await file.exists()) return;
+
+    if (!mounted) return;
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restaurer la sauvegarde'),
+        content: const Text(
+            'Remplacer les raccourcis actuels par la dernière sauvegarde ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restaurer'),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+
+    final data = await file.readAsString();
+    final List<dynamic> decoded = jsonDecode(data);
+    final raccourcis = decoded.map((e) => Raccourci.fromJson(e)).toList();
+
+    await _storage.sauvegarder(raccourcis);
+    setState(() => _raccourcis = raccourcis);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${raccourcis.length} raccourci(s) restauré(s)')),
+    );
+  }
+
+  Future<void> _importerCatalogue() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    if (result == null || !mounted) return;
+
+    final path = result.files.single.path;
+    if (path == null) return;
+
+    try {
+      final contenu = await File(path).readAsString();
+      final data = jsonDecode(contenu) as Map<String, dynamic>;
+      final categories = (data['categories'] as List)
+          .map((c) => CatalogueCategorie.fromJson(c as Map<String, dynamic>))
+          .toList();
+
+      if (!mounted) return;
+      final urlsExistantes = _raccourcis.map((r) => r.url).toSet();
+      final nbAjoutes = await Navigator.push<int>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CatalogueScreen(
+            premierLancement: false,
+            urlsExistantes: urlsExistantes,
+            categories: categories,
+          ),
+        ),
+      );
+      if (!mounted) return;
+      if (nbAjoutes != null && nbAjoutes > 0) {
+        await _charger();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '$nbAjoutes raccourci${nbAjoutes > 1 ? 's ajoutés' : ' ajouté'}'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fichier catalogue invalide.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _ouvrirCatalogue() async {
+    final urlsExistantes = _raccourcis.map((r) => r.url).toSet();
+    final nbAjoutes = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CatalogueScreen(
+          premierLancement: false,
+          urlsExistantes: urlsExistantes,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (nbAjoutes != null && nbAjoutes > 0) {
+      await _charger();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '$nbAjoutes raccourci${nbAjoutes > 1 ? 's ajoutés' : ' ajouté'}'),
+        ),
+      );
+    }
+  }
+
   Future<void> _afficherAPropos() async {
     final info = await PackageInfo.fromPlatform();
-    // Affiche n.m en supprimant le .0 de patch imposé par pubspec
     final version = info.version.replaceAll(RegExp(r'\.0$'), '');
     if (!mounted) return;
     showAboutDialog(
       context: context,
-      applicationName: 'Lanceur',
+      applicationName: 'Sésame',
       applicationVersion: 'v$version',
       applicationLegalese: '© ${DateTime.now().year}',
+      children: [
+        const SizedBox(height: 16),
+        InkWell(
+          onTap: () => launchUrl(
+            Uri.parse(
+                'https://jbil-kebir.github.io/Sesame/confidentialite.html'),
+            mode: LaunchMode.externalApplication,
+          ),
+          child: const Text(
+            'Politique de confidentialité',
+            style: TextStyle(
+              color: Colors.blue,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -606,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             )
           : AppBar(
-              title: const Text('Lanceur'),
+              title: const Text('Sésame'),
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
               actions: [
@@ -622,15 +798,37 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSelected: (value) {
                     if (value == 'reorganiser')
                       setState(() => _modeReorganisation = true);
+                    if (value == 'catalogue') _ouvrirCatalogue();
+                    if (value == 'catalogue_sesame') _importerCatalogue();
                     if (value == 'export') _exporter();
                     if (value == 'import') _importer();
+                    if (value == 'effacer') _effacerTousLesRaccourcis();
+                    if (value == 'restaurer') _restaurerBackupAuto();
                   },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
                         value: 'reorganiser', child: Text('Réorganiser')),
-                    PopupMenuDivider(),
-                    PopupMenuItem(value: 'export', child: Text('Exporter')),
-                    PopupMenuItem(value: 'import', child: Text('Importer')),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                        value: 'catalogue',
+                        child: Text('Ajouter depuis le catalogue')),
+                    const PopupMenuItem(
+                        value: 'catalogue_sesame',
+                        child: Text('Importer un catalogue (.sesame)')),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(value: 'export', child: Text('Exporter')),
+                    const PopupMenuItem(value: 'import', child: Text('Importer')),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'effacer',
+                      child: Text('Tout effacer',
+                          style: TextStyle(color: Colors.red)),
+                    ),
+                    if (_backupAutoDisponible)
+                      const PopupMenuItem(
+                        value: 'restaurer',
+                        child: Text('Restaurer la sauvegarde'),
+                      ),
                   ],
                 ),
               ],

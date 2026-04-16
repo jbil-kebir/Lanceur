@@ -33,6 +33,11 @@ class StorageService {
     await _secureStorage.delete(key: 'pwd_$id');
   }
 
+  Future<void> effacerRaccourcis() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+  }
+
   Future<void> effacerTout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
