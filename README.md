@@ -34,7 +34,7 @@ Application Android Flutter permettant d'enregistrer des raccourcis vers vos sit
 ### Lancer en développement
 
 ```bash
-cd "lanceur/lanceur 1.1"
+cd lanceur
 flutter pub get
 flutter run
 ```
@@ -50,7 +50,7 @@ flutter build apk --release
 ## Structure du projet
 
 ```
-lanceur/lanceur 1.1/
+lanceur/
 ├── lib/
 │   ├── main.dart                  # Point d'entrée de l'application
 │   ├── models/
@@ -95,7 +95,7 @@ lanceur/lanceur 1.1/
 
 ## Changelog
 
-Voir [CHANGELOG.md](lanceur/lanceur%201.1/CHANGELOG.md).
+Voir [CHANGELOG.md](lanceur/CHANGELOG.md).
 
 ---
 
