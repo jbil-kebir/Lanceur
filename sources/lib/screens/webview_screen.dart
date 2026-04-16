@@ -47,8 +47,8 @@ class _WebViewScreenState extends State<WebViewScreen> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setUserAgent(
-        'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/131.0.6778.135 Mobile Safari/537.36',
       )
       ..addJavaScriptChannel(
         'CredentialCapture',
@@ -107,6 +107,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
             });
           }
         },
+        onSslAuthError: (error) => error.proceed(),
       ))
       ..loadRequest(Uri.parse(widget.url));
   }

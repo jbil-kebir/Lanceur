@@ -1,3 +1,7 @@
+## 1.4
+- WebView : les sites dont le certificat SSL n'est pas reconnu par Android s'affichent désormais correctement (résout la page blanche sur e-assr.education-securite-routiere.fr et sites similaires)
+- WebView : user-agent mis à jour (Android 14, Pixel 8, Chrome 131)
+
 ## 1.3
 - WebView : injection des identifiants étendue à toutes les pages jusqu'au premier succès (fonctionne désormais avec les portails à page de sélection de profil, ex. ENT)
 - WebView : injection limitée aux champs visibles — les champs masqués (tokens CSRF, inputs hidden) sont ignorés pour éviter les faux positifs sur les pages post-connexion

@@ -14,7 +14,7 @@
 | Langage | Dart |
 | SDK Dart minimum | ^3.11.0 |
 | Cible principale | Android |
-| Version application | 1.3 |
+| Version application | 1.4 |
 
 ### Dépendances
 
@@ -162,6 +162,9 @@ Inverse les étapes ci-dessus. Toute erreur (passphrase incorrecte, fichier corr
 | `login` | `String?` | Identifiant enregistré (injection automatique) |
 | `motDePasse` | `String?` | Mot de passe enregistré (injection automatique) |
 | `onCredentialsSaved` | `Function(String, String)?` | Callback appelé quand l'utilisateur accepte de sauvegarder |
+
+**Gestion des erreurs SSL** :
+Le `NavigationDelegate` inclut `onSslAuthError: (error) => error.proceed()` pour accepter les certificats non reconnus par Android (ex. autorité non incluse dans le trust store Android). Cela permet d'afficher les sites dont la chaîne de certificats est invalide aux yeux du WebView système.
 
 **Injection automatique** (`_injecterIdentifiants`) :
 Déclenchée à chaque `onPageFinished`. Si `login` et `motDePasse` sont fournis, un script JS cherche le champ `input[type=password]` et le champ login précédent. S'ils sont présents, il injecte les valeurs via les setters natifs (`HTMLInputElement.prototype.value`) avec dispatch des événements `input` et `change` (compatibilité React/Vue), puis soumet le formulaire après 600 ms selon la priorité suivante :
