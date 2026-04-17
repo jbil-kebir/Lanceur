@@ -441,8 +441,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _afficherChargement('Export en cours…');
 
     try {
+      final raccourcisExport = _raccourcis.where((r) => !r.estSeparateur).toList();
       final passwords = <String, String>{};
-      for (final r in _raccourcis) {
+      for (final r in raccourcisExport) {
         if (r.login != null) {
           final mdp = await _storage.chargerMotDePasse(r.id);
           if (mdp != null) passwords[r.id] = mdp;
@@ -450,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final contenu = await ExportService.chiffrer(
-        raccourcis: _raccourcis,
+        raccourcis: raccourcisExport,
         passwords: passwords,
         passphrase: passphrase,
       );
