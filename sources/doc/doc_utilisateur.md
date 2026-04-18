@@ -31,7 +31,7 @@ Si vous avez oublié votre code d'accès :
 1. Après 5 tentatives échouées, le lien **"Code oublié ?"** apparaît sous le clavier.
 2. Appuyez dessus pour ouvrir la feuille de récupération.
 3. **Option A — code de secours** : saisissez l'un de vos codes de secours. Sésame vous permet alors de définir un nouveau code d'accès et génère de nouveaux codes de secours.
-4. **Option B — réinitialisation** : si vous n'avez plus de codes de secours, vous pouvez effacer complètement l'application. **Toutes les données sont perdues définitivement.** Un fichier de sauvegarde `.lncr` vous permettra de les restaurer si vous en avez un.
+4. **Option B — réinitialisation** : si vous n'avez plus de codes de secours, vous pouvez effacer complètement l'application. **Toutes les données sont perdues définitivement.** Un fichier de sauvegarde `.sesame` vous permettra de les restaurer si vous en avez un.
 
 > **Nota** : Sésame ne connaît pas votre code. Personne ne peut le récupérer à votre place.
 
@@ -139,11 +139,11 @@ En mode réorganisation, appuyez sur le **+** dans la barre du haut pour insére
 
 ---
 
-## Catalogues en ligne
+## Catalogues
+
+### Catalogues en ligne
 
 Les catalogues en ligne sont des listes de raccourcis prêts à l'emploi, publiés et mis à jour par l'administrateur de l'application.
-
-### Importer un catalogue
 
 1. Appuyez sur le menu **⋮**, puis **Catalogues en ligne**.
 2. L'application télécharge la liste des catalogues disponibles.
@@ -152,13 +152,21 @@ Les catalogues en ligne sont des listes de raccourcis prêts à l'emploi, publi�
 5. Sélectionnez les raccourcis à ajouter (les raccourcis déjà présents sont grisés).
 6. Appuyez sur **Ajouter** pour les intégrer à votre liste.
 
-### Mise à jour d'un catalogue
+#### Mise à jour d'un catalogue
 
 Lorsqu'une nouvelle version d'un catalogue est disponible, la carte affiche le badge **"Mise à jour"**. Appuyez dessus et importez les nouveaux raccourcis exactement comme lors du premier import.
 
-### Mode hors-ligne
+#### Mode hors-ligne
 
 Si vous n'avez pas de connexion Internet, la liste des catalogues s'affiche à partir du dernier téléchargement connu. Le contenu des catalogues eux-mêmes n'est pas mis en cache : une connexion est nécessaire pour les ouvrir.
+
+### Importer un catalogue local
+
+Vous pouvez aussi importer un fichier catalogue (`.catalogue`) reçu directement :
+
+1. Appuyez sur le menu **⋮**, puis **Importer un catalogue (.catalogue)**.
+2. Sélectionnez le fichier dans le gestionnaire de fichiers.
+3. Choisissez les raccourcis à ajouter et appuyez sur **Ajouter**.
 
 ---
 
@@ -168,16 +176,16 @@ Si vous n'avez pas de connexion Internet, la liste des catalogues s'affiche à p
 
 1. Appuyez sur le menu **⋮** en haut à droite, puis **Exporter**.
 2. Saisissez une **passphrase** (mot de passe de chiffrement) et confirmez.
-3. Partagez le fichier `.lncr` généré via l'application de votre choix (Drive, mail, WhatsApp…).
+3. Partagez le fichier `.sesame` généré via l'application de votre choix (Drive, mail, WhatsApp…).
 
 > Le fichier est chiffré : sans la passphrase, son contenu est illisible.
 
-> **Conseil** : conservez un fichier `.lncr` à jour comme sauvegarde de secours. C'est le seul moyen de restaurer vos données en cas de réinitialisation de l'application.
+> **Conseil** : conservez un fichier `.sesame` à jour comme sauvegarde de secours. C'est le seul moyen de restaurer vos données en cas de réinitialisation de l'application.
 
 ### Importer
 
 1. Appuyez sur le menu **⋮**, puis **Importer**.
-2. Sélectionnez le fichier `.lncr` dans le gestionnaire de fichiers.
+2. Sélectionnez le fichier `.sesame` dans le gestionnaire de fichiers.
 3. Saisissez la passphrase utilisée lors de l'export.
 4. Choisissez comment importer :
    - **Remplacer** — efface tous les raccourcis existants et les remplace par ceux du fichier.
@@ -197,4 +205,4 @@ La suppression est définitive. Vous devrez recréer le raccourci via le bouton 
 Vérifiez votre connexion internet. Vous pouvez aussi appuyer sur l'icône **refresh** pour réessayer.
 
 **J'ai oublié ma passphrase d'export.**
-La passphrase est connue de vous seul. Sans elle, le fichier `.lncr` est inaccessible.
+La passphrase est connue de vous seul. Sans elle, le fichier `.sesame` est inaccessible.

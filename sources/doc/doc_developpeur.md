@@ -191,7 +191,7 @@ Gère l'ensemble du système de verrouillage PIN.
 
 Gère le chiffrement et le déchiffrement des sauvegardes. Les deux méthodes publiques s'exécutent dans un isolate Dart (`Isolate.run`) pour ne pas bloquer l'UI pendant la dérivation de clé.
 
-**Format du fichier exporté** — JSON, extension `.lncr` :
+**Format du fichier exporté** — JSON, extension `.sesame` :
 ```json
 { "v": 1, "salt": "<base64>", "iv": "<base64>", "data": "<base64>" }
 ```
@@ -212,7 +212,7 @@ Inverse les étapes ci-dessus. Toute erreur (passphrase incorrecte, fichier corr
 
 ### `lib/services/catalogue_service.dart`
 
-Charge le catalogue embarqué depuis `assets/catalogue.json` via `rootBundle`.
+Charge le catalogue embarqué depuis `assets/default.catalogue` via `rootBundle`.
 
 ---
 
@@ -316,11 +316,11 @@ En mode `premierLancement`, valider navigue vers `/home` (→ `PinSetupScreen`).
 | Item | Action |
 |---|---|
 | Réorganiser | Mode réorganisation par drag (avec séparateurs) |
-| Catalogue par défaut | `CatalogueScreen` avec catalogue embarqué |
-| Importer un catalogue (.sesame) | Import d'un fichier `.sesame` local |
-| **Catalogues en ligne** | `CataloguesEnLigneScreen` |
-| Exporter | Export chiffré `.lncr` |
-| Importer | Import chiffré `.lncr` |
+| Catalogue par défaut | `CatalogueScreen` avec catalogue embarqué (`assets/default.catalogue`) |
+| Importer un catalogue (.catalogue) | Import d'un fichier `.catalogue` local |
+| Catalogues en ligne | `CataloguesEnLigneScreen` |
+| Exporter | Export chiffré `.sesame` |
+| Importer | Import chiffré `.sesame` |
 | Tout effacer | Suppression de tous les raccourcis |
 | Restaurer la sauvegarde | Restauration backup automatique (si disponible) |
 
@@ -369,7 +369,7 @@ Un overlay "Téléchargement en cours..." bloque l'UI pendant le téléchargemen
 
 ## Formats de fichiers
 
-### `.lncr` — export personnel chiffré
+### `.sesame` — sauvegarde personnelle chiffrée
 
 ```json
 { "v": 1, "salt": "<base64>", "iv": "<base64>", "data": "<base64>" }
@@ -380,11 +380,9 @@ Un overlay "Téléchargement en cours..." bloque l'UI pendant le téléchargemen
 { "raccourcis": [...], "passwords": { "<id>": "<mdp>", ... } }
 ```
 
-Usage : sauvegarde personnelle, migration entre appareils. Peut contenir des logins et mots de passe.
+Usage : sauvegarde personnelle, migration entre appareils. Contient raccourcis et mots de passe chiffrés (AES-256-CBC, clé PBKDF2).
 
-### `.sesame` — catalogue local (héritage)
-
-Format identique au fichier `assets/catalogue.json` embarqué :
+### `.catalogue` — catalogue de raccourcis
 
 ```json
 {
@@ -396,14 +394,14 @@ Format identique au fichier `assets/catalogue.json` embarqué :
 }
 ```
 
-Usage : distribution manuelle de catalogues via partage de fichier. Par convention, ne doit pas contenir de logins.
+Utilisé pour :
+- Le catalogue embarqué (`assets/default.catalogue`) — chargé au premier lancement
+- Les catalogues en ligne distribués via GitHub (`catalogues/*.catalogue`)
+- L'import manuel de catalogues locaux
 
-### `.catalogue` — catalogue en ligne
+Par construction, ne contient jamais de credentials (le modèle `CatalogueRaccourci` ne comporte que `id`, `label`, `url`).
 
-Même structure JSON que `.sesame`. La distinction est conceptuelle et technique :
-- Distribué via GitHub (URL raw publique)
-- Structurellement interdit de contenir des credentials (le modèle `CatalogueRaccourci` ne comporte que `id`, `label`, `url`)
-- Versionné via l'`index.json`
+> **Note** : bien que `.sesame` et `.catalogue` partagent l'extension `.sesame` / `.catalogue`, ils sont structurellement distincts — l'un est chiffré, l'autre est du JSON brut.
 
 ---
 
@@ -508,29 +506,55 @@ L'historique des changements est maintenu dans `CHANGELOG.md`.
 
 ---
 
-## Scripts de build
+## Scripts de build et publication
 
 ### `build.bat` — compilation
 
-1. Copie `doc/catalogue.json` → `assets/catalogue.json`
+1. Copie `doc/default.catalogue` → `assets/default.catalogue`
 2. Build APK release via Flutter
 3. Copie l'APK dans `U:\Info-Developpement\GitHub\Sesame\apk\sesame.apk`
 
 ```
-./build
+build
 ```
 
 ### `publish.bat` — publication GitHub
 
 1. Vérifie qu'un APK est présent
-2. Synchronise `lib/`, `assets/`, `doc/` vers `sources/` du dépôt local via `sync_github.py`
+2. Synchronise `lib/`, `assets/`, `doc/` → `sources/` et `docs/` du dépôt GitHub via `sync_github.py`
 3. `git add -A` + `git commit` + `git push`
 
 ```
-./publish
+publish
 ```
 
-> Ces deux scripts remplacent l'ancien `build_release.bat` (conservé pour compatibilité). L'enchaînement `build` puis `publish` est équivalent à l'ancien script.
+> L'enchaînement `build` puis `publish` est le workflow standard. `build_release.bat` est conservé pour compatibilité.
+
+### `sync_github.py` — synchronisation des sources
+
+Copie les dossiers `lib/`, `assets/`, `doc/` vers `U:\Info-Developpement\GitHub\Sesame\sources\` et les fichiers HTML (`doc/*.html`) vers `U:\Info-Developpement\GitHub\Sesame\docs\`.
+
+> **Important** : toujours modifier les sources dans le projet local (`D:\Developpement\FlutterProjects\Sesame\`). Le dépôt GitHub est un miroir — ne jamais éditer directement les fichiers sous `sources/`.
+
+---
+
+## Outils de maintenance
+
+Situés dans `U:\Info-Developpement\GitHub\Sesame\outils\` (voir `outils/README.md`).
+
+### `check_catalogues.py`
+
+Vérifie l'accessibilité de tous les liens des catalogues hébergés sur GitHub. Détecte les erreurs DNS, timeouts, HTTP 4xx/5xx et les redirections d'un sous-domaine vers le domaine racine du même site.
+
+```bash
+python check_catalogues.py [--token GITHUB_TOKEN]
+```
+
+### `lancer_verification.py`
+
+Lance `check_catalogues.py` puis envoie le rapport par mail via le MCP Thunderbird (`thunderbird-mail`). Démarre Thunderbird automatiquement si nécessaire.
+
+Planifié chaque mercredi à 19h via le Planificateur de tâches Windows (`StartWhenAvailable`).
 
 ---
 
@@ -555,6 +579,9 @@ flutter run
 
 # Build APK release (préférer build.bat)
 flutter build apk --release
+
+# Installer directement sur l'appareil connecté
+flutter install --release
 
 # Mettre à jour les dépendances
 flutter pub upgrade

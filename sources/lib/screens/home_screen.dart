@@ -893,7 +893,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Text('Catalogue par défaut')),
                     const PopupMenuItem(
                         value: 'catalogue_sesame',
-                        child: Text('Importer un catalogue (.sesame)')),
+                        child: Text('Importer un catalogue (.catalogue)')),
                     const PopupMenuItem(
                         value: 'catalogue_en_ligne',
                         child: Text('Catalogues en ligne')),
