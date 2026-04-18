@@ -418,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> {
         content: TextField(
           controller: nomController,
           autofocus: true,
-          decoration: const InputDecoration(suffixText: '.lncr'),
+          decoration: const InputDecoration(suffixText: '.sesame'),
         ),
         actions: [
           TextButton(
@@ -457,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/$nomFichier.lncr');
+      final file = File('${dir.path}/$nomFichier.sesame');
       await file.writeAsString(contenu);
 
       if (!mounted) return;

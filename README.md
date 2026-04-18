@@ -13,7 +13,7 @@ Application Android Flutter permettant d'enregistrer des raccourcis vers vos sit
 - **Mémorisation de session** — reste connecté entre les visites
 - **Vue grille / liste** — basculez l'affichage d'un appui
 - **Réorganisation par glisser-déposer** — triez vos raccourcis à la main
-- **Export / Import chiffré** — sauvegardez vos raccourcis dans un fichier `.lncr` chiffré (AES-256, PBKDF2) et restaurez-les sur un autre appareil
+- **Export / Import chiffré** — sauvegardez vos raccourcis dans un fichier `.sesame` chiffré (AES-256, PBKDF2) et restaurez-les sur un autre appareil
 - **Catalogues en ligne** — importez des raccourcis prêts à l'emploi depuis un catalogue hébergé sur GitHub
 
 ---
@@ -74,6 +74,15 @@ Sesame/
 │   ├── lancer_verification.py     # Lancement automatique + envoi mail
 │   └── rapports/                  # Rapports générés (ignorés par git)
 ├── sources/                       # Sources Flutter
+│   ├── assets/
+│   │   └── default.catalogue      # Catalogue par défaut (bundlé dans l'APK)
+│   ├── doc/                       # Catalogues de référence et ressources
+│   │   ├── default.catalogue      # Catalogue par défaut (source)
+│   │   ├── kleber_college.catalogue
+│   │   ├── kleber_lycee.catalogue
+│   │   ├── doc_developpeur.md
+│   │   ├── doc_utilisateur.md
+│   │   └── icon.svg / icon.png
 │   ├── lib/
 │   │   ├── main.dart              # Point d'entrée de l'application
 │   │   ├── models/
@@ -83,7 +92,7 @@ Sesame/
 │   │   │   └── webview_screen.dart# Navigateur intégré avec injection de credentials
 │   │   └── services/
 │   │       ├── storage_service.dart   # Persistance locale (shared_preferences + secure storage)
-│   │       └── export_service.dart    # Export / import chiffré (.lncr)
+│   │       └── export_service.dart    # Export / import chiffré (.sesame)
 │   ├── android/                   # Configuration Android native
 │   ├── pubspec.yaml               # Dépendances Flutter
 │   └── CHANGELOG.md              # Historique des versions
@@ -97,8 +106,10 @@ Sesame/
 
 | Extension | Usage |
 |-----------|-------|
-| `.lncr` | Sauvegarde chiffrée des raccourcis et identifiants utilisateur (AES-256, PBKDF2) |
+| `.sesame` | Sauvegarde chiffrée des raccourcis et identifiants utilisateur (AES-256, PBKDF2) |
 | `.catalogue` | Catalogue de raccourcis prêts à l'emploi (JSON, importable dans l'application) |
+
+> Les fichiers `.sesame` de sauvegarde et les fichiers `.catalogue` sont deux formats distincts malgré l'extension commune — les premiers sont chiffrés, les seconds sont du JSON brut.
 
 ---
 
@@ -120,7 +131,7 @@ Sesame/
 ## Sécurité
 
 - Les mots de passe sont stockés via `flutter_secure_storage` (Keystore Android)
-- Les fichiers d'export `.lncr` sont chiffrés en AES-256 avec une clé dérivée via PBKDF2
+- Les fichiers d'export `.sesame` sont chiffrés en AES-256 avec une clé dérivée via PBKDF2
 - Sans la passphrase, le contenu du fichier exporté est illisible
 
 ---

@@ -537,7 +537,7 @@ class _RecuperationSheetState extends State<_RecuperationSheet> {
             const SizedBox(height: 8),
             const Text(
               'Efface définitivement tous les raccourcis et mots de passe. '
-              'Aucune récupération possible sans fichier de sauvegarde (.lncr).',
+              'Aucune récupération possible sans fichier de sauvegarde (.sesame).',
               style: TextStyle(
                 color: Colors.white60,
                 fontSize: 13,
