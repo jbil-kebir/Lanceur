@@ -1,20 +1,19 @@
 """
-lancer_verification.py — Lance la vérification des catalogues et ouvre
-Thunderbird avec le rapport prêt à envoyer.
+lancer_verification.py — Lance la vérification des catalogues puis envoie
+le rapport par mail via Claude Code (MCP thunderbird-mail, sendMail skipReview).
 
 Appelé automatiquement par le Planificateur de tâches Windows chaque mercredi.
 """
 
 import subprocess
 import sys
+import json
 from pathlib import Path
 from datetime import datetime
 
 SCRIPT_DIR = Path(__file__).parent
-THUNDERBIRD = r"C:\Program Files\Mozilla Thunderbird\thunderbird.exe"
 EXPEDITEUR = "jbil.kebir@pm.me"
 DESTINATAIRE = "jbil.kebir@protonmail.com"
-
 TOKEN_FILE = Path(r"D:\Developpement\Token pour Claude.txt")
 
 
@@ -39,26 +38,27 @@ def main():
         print("Aucun rapport trouvé après vérification.", file=sys.stderr)
         sys.exit(1)
     latest = rapports[-1]
-
     rapport_text = latest.read_text(encoding="utf-8")
 
-    # Construction de la commande Thunderbird -compose
     date_str = datetime.now().strftime("%d/%m/%Y")
     subject = f"Rapport Sesame -- {date_str}"
 
-    # Encodage du corps pour Thunderbird (les sauts de ligne deviennent %0A)
-    body = rapport_text.replace("%", "%25").replace("'", "%27").replace("\r\n", "%0A").replace("\n", "%0A")
-    attachment = latest.as_uri()  # file:///U:/...
-
-    compose = (
-        f"to='{DESTINATAIRE}',"
-        f"from='{EXPEDITEUR}',"
-        f"subject='{subject}',"
-        f"body='{body}',"
-        f"attachment='{attachment}'"
+    # Envoi via Claude Code (MCP thunderbird-mail sendMail skipReview)
+    prompt = (
+        f"Utilise l'outil MCP thunderbird-mail sendMail pour envoyer ce mail sans review "
+        f"(skipReview: true) :\n"
+        f"- from: {EXPEDITEUR}\n"
+        f"- to: {DESTINATAIRE}\n"
+        f"- subject: {subject}\n"
+        f"- body (texte brut) :\n{rapport_text}\n"
+        f"- attachments: [\"{latest}\"]\n"
+        f"Ne fais rien d'autre."
     )
 
-    subprocess.Popen([THUNDERBIRD, "-compose", compose])
+    subprocess.run(
+        ["claude", "--dangerously-skip-permissions", "-p", prompt],
+        check=True,
+    )
 
 
 if __name__ == "__main__":
