@@ -105,8 +105,15 @@ def fetch_catalogues(token: str | None) -> list[dict]:
 
 async def check_url_aiohttp(session: "aiohttp.ClientSession", shortcut: dict) -> dict:
     url = shortcut["url"]
+    timeout = aiohttp.ClientTimeout(total=TIMEOUT)
     try:
-        async with session.head(url, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=TIMEOUT)) as resp:
+        async with session.head(url, allow_redirects=True, timeout=timeout) as resp:
+            code = resp.status
+            if code not in CODES_CASSES:
+                return {**shortcut, "statut": "OK", "code": code, "detail": ""}
+        # HEAD a retourné un code cassé : on confirme avec GET (certains serveurs
+        # ne supportent pas HEAD et retournent 404 à tort)
+        async with session.get(url, allow_redirects=True, timeout=timeout) as resp:
             code = resp.status
             if code in CODES_CASSES:
                 return {**shortcut, "statut": "CASSE", "code": code, "detail": f"HTTP {code}"}
@@ -133,27 +140,48 @@ async def check_all_aiohttp(shortcuts: list[dict]) -> list[dict]:
         return await asyncio.gather(*[bounded(s) for s in shortcuts])
 
 
+def _urllib_request(url: str, method: str) -> int:
+    """Envoie une requête HTTP et retourne le code de statut final (après redirections)."""
+    import ssl
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    req = urllib.request.Request(url, method=method, headers={
+        "User-Agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/131.0.6778.135 Mobile Safari/537.36"
+    })
+    with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as r:
+        return r.status
+
+
 def check_url_urllib(shortcut: dict) -> dict:
     """Fallback synchrone si aiohttp n'est pas installé."""
     import socket
     url = shortcut["url"]
-    req = urllib.request.Request(url, method="HEAD", headers={
-        "User-Agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/131.0.6778.135 Mobile Safari/537.36"
-    })
     try:
-        ctx = urllib.request.ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = urllib.request.ssl.CERT_NONE
-        with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as r:
-            code = r.status
+        code = _urllib_request(url, "HEAD")
+        if code not in CODES_CASSES:
+            return {**shortcut, "statut": "OK", "code": code, "detail": ""}
+        # HEAD cassé : on confirme avec GET
+        code = _urllib_request(url, "GET")
+        if code in CODES_CASSES:
+            return {**shortcut, "statut": "CASSE", "code": code, "detail": f"HTTP {code}"}
+        return {**shortcut, "statut": "OK", "code": code, "detail": ""}
+    except urllib.error.HTTPError as e:
+        if e.code not in CODES_CASSES:
+            return {**shortcut, "statut": "OK", "code": e.code, "detail": ""}
+        # HEAD cassé : on confirme avec GET
+        try:
+            code = _urllib_request(url, "GET")
             if code in CODES_CASSES:
                 return {**shortcut, "statut": "CASSE", "code": code, "detail": f"HTTP {code}"}
             return {**shortcut, "statut": "OK", "code": code, "detail": ""}
-    except urllib.error.HTTPError as e:
-        if e.code in CODES_CASSES:
+        except urllib.error.HTTPError as e2:
+            if e2.code in CODES_CASSES:
+                return {**shortcut, "statut": "CASSE", "code": e2.code, "detail": f"HTTP {e2.code}"}
+            return {**shortcut, "statut": "OK", "code": e2.code, "detail": ""}
+        except Exception:
             return {**shortcut, "statut": "CASSE", "code": e.code, "detail": f"HTTP {e.code}"}
-        return {**shortcut, "statut": "OK", "code": e.code, "detail": ""}
     except urllib.error.URLError as e:
         return {**shortcut, "statut": "CASSE", "code": None, "detail": str(e.reason)}
     except socket.timeout:
