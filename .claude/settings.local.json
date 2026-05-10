@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcode-select -p)",
+      "Bash(xcrun xcodebuild *)",
+      "Bash(flutter --version)",
+      "Bash(flutter doctor *)",
+      "Bash(flutter pub *)",
+      "Bash(pod install *)",
+      "Bash(flutter precache *)",
+      "Read(//Volumes/**)",
+      "Bash(mount)",
+      "Bash(chmod +x \"/Users/athena/kj/Projets flutter/Sesame/publier.sh\")",
+      "Bash(./publier.sh)"
+    ]
+  }
+}

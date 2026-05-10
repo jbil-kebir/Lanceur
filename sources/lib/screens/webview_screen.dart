@@ -9,6 +9,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:flutter/services.dart';
+
 import '../services/storage_service.dart';
 
 class WebViewScreen extends StatefulWidget {
@@ -50,6 +52,8 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
 
+  static const _radioChannel = MethodChannel('com.example.sesame/radio');
+
   @override
   void initState() {
     super.initState();
@@ -58,16 +62,26 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
 
   @override
   void dispose() {
-    if (widget.estRadio) WidgetsBinding.instance.removeObserver(this);
+    if (widget.estRadio) {
+      WidgetsBinding.instance.removeObserver(this);
+      _radioChannel.invokeMethod('stopRadioService').catchError((_) {});
+    }
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      _controller?.resumeTimers();
+      _controller?.resume();       // webView.onResume() — réactive le renderer et les médias
+      _controller?.resumeTimers(); // réactive les timers JS
       _relancerAudio();
     }
+  }
+
+  Future<void> _demarrerServiceRadio() async {
+    try {
+      await _radioChannel.invokeMethod('startRadioService', {'title': widget.nom});
+    } catch (_) {}
   }
 
   void _injecterVisibiliteRadio() {
@@ -617,6 +631,12 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                         document.addEventListener('visibilitychange', function(e) {
                           e.stopImmediatePropagation();
                         }, true);
+                        window.addEventListener('blur', function(e) {
+                          e.stopImmediatePropagation();
+                        }, true);
+                        window.addEventListener('pagehide', function(e) {
+                          e.stopImmediatePropagation();
+                        }, true);
                       ''',
                       injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
                     ),
@@ -648,7 +668,10 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                 _formulaireConnexionDetecte = false;
               });
               _injecterWindowOpen();
-              if (widget.estRadio) _injecterVisibiliteRadio();
+              if (widget.estRadio) {
+                _injecterVisibiliteRadio();
+                await _demarrerServiceRadio();
+              }
               await _injecterIdentifiants();
               final enAttente = _identifiantsEnAttente;
               if (enAttente != null) {

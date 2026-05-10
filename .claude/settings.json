@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter doctor *)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter test *)",
+      "Bash(pod --version)",
+      "Bash(gem list *)",
+      "Bash(dart --version)",
+      "Bash(dart analyze *)"
+    ]
+  }
+}
