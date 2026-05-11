@@ -57,13 +57,13 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
   @override
   void initState() {
     super.initState();
-    if (widget.estRadio) WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (widget.estRadio) {
-      WidgetsBinding.instance.removeObserver(this);
       _radioChannel.invokeMethod('stopRadioService').catchError((_) {});
     }
     super.dispose();
@@ -72,9 +72,14 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      _controller?.resume();       // webView.onResume() — réactive le renderer et les médias
-      _controller?.resumeTimers(); // réactive les timers JS
-      _relancerAudio();
+      if (!widget.estRadio) {
+        _controller?.pause();
+        _controller?.pauseTimers();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _controller?.resume();
+      _controller?.resumeTimers();
+      if (widget.estRadio) _relancerAudio();
     }
   }
 
