@@ -29,11 +29,18 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _vueGrille = true;
   bool _modeReorganisation = false;
   bool _backupAutoDisponible = false;
+  final ScrollController _reorgScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _charger();
+  }
+
+  @override
+  void dispose() {
+    _reorgScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _charger() async {
@@ -469,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _afficherChargement('Export en cours…');
 
     try {
-      final raccourcisExport = _raccourcis.where((r) => !r.estSeparateur).toList();
+      final raccourcisExport = _raccourcis;
       final passwords = <String, String>{};
       for (final r in raccourcisExport) {
         if (r.login != null) {
@@ -624,14 +631,21 @@ class _HomeScreenState extends State<HomeScreen> {
           final nouveauId = (base + i).toString();
 
           String nom = r.nom;
-          if (nomsExistants.contains(nom)) {
+          if (!r.estSeparateur && nomsExistants.contains(nom)) {
             var n = 2;
             while (nomsExistants.contains('$nom ($n)')) n++;
             nom = '$nom ($n)';
           }
-          nomsExistants.add(nom);
+          if (!r.estSeparateur) nomsExistants.add(nom);
 
-          ajouts.add(Raccourci(id: nouveauId, nom: nom, url: r.url, login: r.login));
+          ajouts.add(Raccourci(
+            id: nouveauId,
+            nom: nom,
+            url: r.url,
+            login: r.login,
+            estSeparateur: r.estSeparateur,
+            estRadio: r.estRadio,
+          ));
 
           final mdp = passwords[r.id];
           if (mdp != null) ajoutsPasswords[nouveauId] = mdp;
@@ -924,7 +938,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   tooltip: 'Ajouter un séparateur',
                   onPressed: () {
                     final id = DateTime.now().millisecondsSinceEpoch.toString();
-                    setState(() => _raccourcis.add(Raccourci.separateur(id)));
+                    int insertIndex = _raccourcis.length;
+                    if (_reorgScrollController.hasClients) {
+                      const double itemHeight = 72.0;
+                      final offset = _reorgScrollController.offset;
+                      final viewport = _reorgScrollController.position.viewportDimension;
+                      insertIndex = ((offset + viewport) / itemHeight).floor().clamp(0, _raccourcis.length);
+                    }
+                    setState(() => _raccourcis.insert(insertIndex, Raccourci.separateur(id)));
                     _sauvegarder();
                   },
                 ),
@@ -1000,6 +1021,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: Text('Appuyez sur + pour ajouter un raccourci'))
           : _modeReorganisation
               ? ReorderableListView.builder(
+                  scrollController: _reorgScrollController,
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   onReorder: (oldIndex, newIndex) {
                     setState(() {

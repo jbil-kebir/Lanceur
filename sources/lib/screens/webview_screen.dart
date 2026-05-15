@@ -77,8 +77,11 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
         _controller?.pauseTimers();
       }
     } else if (state == AppLifecycleState.resumed) {
-      _controller?.resume();
-      _controller?.resumeTimers();
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!mounted) return;
+        _controller?.resume();
+        _controller?.resumeTimers();
+      });
       if (widget.estRadio) _relancerAudio();
     }
   }
