@@ -14,7 +14,7 @@
 | Langage | Dart |
 | SDK Dart minimum | ^3.11.0 |
 | Cible principale | Android |
-| Version application | 2.0 |
+| Version application | 2.4 |
 
 ### Dépendances
 
@@ -97,10 +97,11 @@ Modèle `Raccourci` :
 | `url` | `String` | URL complète de la page web |
 | `login` | `String?` | Identifiant de connexion (optionnel) |
 | `estSeparateur` | `bool` | `true` si l'entrée est un séparateur visuel (défaut : `false`) |
+| `estRadio` | `bool` | `true` si la lecture audio doit continuer en arrière-plan (défaut : `false`) |
 
 Le mot de passe n'est **pas** stocké dans le modèle : il est géré séparément par `StorageService` via `flutter_secure_storage`, indexé par l'`id` du raccourci.
 
-Un séparateur est un `Raccourci` avec `estSeparateur: true`, `nom: ''` et `url: ''`. Il est créé via `Raccourci.separateur(id)`. En JSON, le champ `separateur` est omis quand `false` (rétrocompatibilité). Les séparateurs ne sont jamais ouverts ni modifiés — uniquement déplacés ou supprimés.
+Un séparateur est un `Raccourci` avec `estSeparateur: true`, `nom: ''` et `url: ''`. Il est créé via `Raccourci.separateur(id)`. En JSON, les champs `separateur` et `radio` sont omis quand `false` (rétrocompatibilité). Les séparateurs ne sont jamais ouverts ni modifiés — uniquement déplacés ou supprimés. Ils sont inclus dans l'export `.sesame`.
 
 ---
 
@@ -313,6 +314,8 @@ En mode `premierLancement`, valider navigue vers `/home` (→ `PinSetupScreen`).
 
 Écran principal. Menu ⋮ :
 
+Le mode réorganisation utilise un `ScrollController` (`_reorgScrollController`) attaché au `ReorderableListView`. Le bouton "+" insère le nouveau séparateur en bas de la zone visible : `insertIndex = ((offset + viewportHeight) / 72.0).floor()`. Hauteur estimée par item : 72 dp (ListTile avec sous-titre).
+
 | Item | Action |
 |---|---|
 | Réorganiser | Mode réorganisation par drag (avec séparateurs) |
@@ -339,6 +342,15 @@ Les canaux JS utilisent désormais `window.flutter_inappwebview.callHandler('Nom
 | `CredentialCapture` | Blur sur un champ password | Stocke les identifiants en attente |
 | `CredentialSaveNow` | Capture manuelle (bouton clé) | Propose immédiatement la sauvegarde |
 | `FormDetected` | MutationObserver détecte un champ password | Affiche le bouton clé dans l'AppBar |
+
+**Raccourcis radio (`estRadio: true`)**
+
+Maintien de la lecture audio en arrière-plan et écran éteint :
+- `UserScript AT_DOCUMENT_START` — fige `document.hidden = false` et `document.visibilityState = 'visible'`, bloque `visibilitychange`, `blur`, `pagehide`
+- `WidgetsBindingObserver.didChangeAppLifecycleState` — sur `paused` les timers JS sont suspendus (non les radios) ; sur `resumed` un délai de 200 ms précède `resume()` / `resumeTimers()` pour laisser la surface Android se ré-attacher (évite l'écran noir intermittent)
+- `_relancerAudio()` — 400 ms après `resumed`, ré-injecte les propriétés de visibilité et force `.play()` sur tous les éléments `<audio>` / `<video>` en pause
+- Foreground service Android natif (`RadioService.kt`) via `MethodChannel('com.example.sesame/radio')` — démarre à `onLoadStop`, s'arrête au `dispose()` de la WebView. `foregroundServiceType="mediaPlayback"` empêche le mode Doze de geler l'activité réseau. Notification persistante low-priority avec le nom du raccourci.
+- `mediaPlaybackRequiresUserGesture: false` activé uniquement pour les radios
 
 **Authentification HTTP Basic (`.htpasswd`)**
 

@@ -135,7 +135,7 @@ Vous pouvez aussi appuyer sur l'**icône clé** qui apparaît dans la barre du h
 
 ### Séparateurs
 
-En mode réorganisation, appuyez sur le **+** dans la barre du haut pour insérer un séparateur. Il apparaît en bas de la liste — glissez-le à l'endroit voulu pour diviser vos raccourcis en groupes visuels. Pour le supprimer, appuyez sur l'icône **corbeille** à sa gauche.
+En mode réorganisation, appuyez sur le **+** dans la barre du haut pour insérer un séparateur. Il apparaît en bas de la zone visible — glissez-le à l'endroit voulu pour diviser vos raccourcis en groupes visuels. Pour le supprimer, appuyez sur l'icône **corbeille** à sa gauche.
 
 ---
 

@@ -1,3 +1,12 @@
+## 2.4
+- Réorganisation : le séparateur ajouté (bouton +) s'insère en bas de la zone visible plutôt qu'en fin de liste
+- Export/import `.sesame` : les séparateurs sont désormais inclus dans la sauvegarde chiffrée
+- WebView : correction d'un écran noir intermittent au retour en avant-plan
+
+## 2.3
+- Raccourcis radio : lecture audio maintenue en arrière-plan et écran éteint via un foreground service Android natif
+- Raccourcis radio : toggle « Radio (lecture en veille) » dans le formulaire d'ajout/modification
+
 ## 2.2
 - Export des raccourcis comme catalogue (`.catalogue`) — nom et URL uniquement, sans identifiants ; les séparateurs délimitent les catégories
 
