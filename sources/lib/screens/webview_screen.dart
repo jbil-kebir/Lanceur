@@ -46,6 +46,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
   bool _injectionEffectuee = false;
   bool _dialogueEnCours = false;
   bool _telechargementEnCours = false;
+  bool _youtubeActif = false;
 
   Map<String, String>? _identifiantsEnAttente;
   bool _formulaireConnexionDetecte = false;
@@ -66,23 +67,29 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
     if (widget.estRadio) {
       _radioChannel.invokeMethod('stopRadioService').catchError((_) {});
     }
+    if (_youtubeActif) {
+      _radioChannel.invokeMethod('stopYoutubePip').catchError((_) {});
+      _radioChannel.invokeMethod('stopRadioService').catchError((_) {});
+    }
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      if (!widget.estRadio) {
-        _controller?.pause();
+      // Ne pas mettre en pause si YouTube est actif (le PiP garde le WebView vivant)
+      if (!widget.estRadio && !_youtubeActif) {
         _controller?.pauseTimers();
       }
     } else if (state == AppLifecycleState.resumed) {
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (!mounted) return;
-        _controller?.resume();
+      if (_youtubeActif) {
+        _controller?.evaluateJavascript(source: 'window.__sesamePipVraiActif=false;');
+      }
+      if (!widget.estRadio) {
         _controller?.resumeTimers();
-      });
-      if (widget.estRadio) _relancerAudio();
+      } else {
+        _relancerAudio();
+      }
     }
   }
 
@@ -109,6 +116,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
       })();
     ''');
   }
+
 
   Future<void> _relancerAudio() async {
     await Future.delayed(const Duration(milliseconds: 400));
@@ -584,16 +592,28 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
 
   // ─── UI ───────────────────────────────────────────────────────────────────
 
+  // Navigate to about:blank before closing to release video/GPU surfaces and
+  // prevent a black screen on the home screen after background/foreground cycles.
+  Future<void> _fermerWebView() async {
+    await _controller?.loadUrl(urlRequest: URLRequest(url: WebUri('about:blank')));
+    if (mounted) Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _fermerWebView();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(widget.nom),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _fermerWebView,
         ),
         actions: [
           if (_peutReculer)
@@ -626,43 +646,139 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
         children: [
           InAppWebView(
             initialUrlRequest: URLRequest(url: WebUri(widget.url)),
-            initialUserScripts: widget.estRadio
-                ? UnmodifiableListView([
-                    UserScript(
-                      source: '''
-                        Object.defineProperty(document, 'hidden', {
-                          configurable: true, get: function() { return false; }
-                        });
-                        Object.defineProperty(document, 'visibilityState', {
-                          configurable: true, get: function() { return 'visible'; }
-                        });
-                        document.addEventListener('visibilitychange', function(e) {
-                          e.stopImmediatePropagation();
-                        }, true);
-                        window.addEventListener('blur', function(e) {
-                          e.stopImmediatePropagation();
-                        }, true);
-                        window.addEventListener('pagehide', function(e) {
-                          e.stopImmediatePropagation();
-                        }, true);
-                      ''',
-                      injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-                    ),
-                  ])
-                : null,
+            initialUserScripts: UnmodifiableListView([
+                UserScript(
+                  source: widget.estRadio ? '''
+                    var _realHiddenGet = (Object.getOwnPropertyDescriptor(Document.prototype, 'hidden') ||
+                                         Object.getOwnPropertyDescriptor(document, 'hidden') || {}).get;
+                    Object.defineProperty(document, 'hidden', {
+                      configurable: true, get: function() { return false; }
+                    });
+                    Object.defineProperty(document, 'visibilityState', {
+                      configurable: true, get: function() { return 'visible'; }
+                    });
+                    document.hasFocus = function() { return true; };
+                    document.addEventListener('visibilitychange', function(e) {
+                      if (_realHiddenGet && _realHiddenGet.call(document)) window.__sesameBackgroundMode = true;
+                      e.stopImmediatePropagation();
+                    }, true);
+                    window.addEventListener('blur', function(e) {
+                      e.stopImmediatePropagation();
+                    }, true);
+                    window.addEventListener('pagehide', function(e) {
+                      window.__sesameBackgroundMode = true;
+                      e.stopImmediatePropagation();
+                    }, true);
+                    document.addEventListener('freeze', function(e) {
+                      window.__sesameBackgroundMode = true;
+                      e.stopImmediatePropagation();
+                    }, true);
+                    (function() {
+                      window.__sesameBackgroundMode = false;
+                      window.__acInstances = [];
+                      var OrigAC = window.AudioContext || window.webkitAudioContext;
+                      if (OrigAC) {
+                        var WrappedAC = function() {
+                          var ctx = new OrigAC(...arguments);
+                          window.__acInstances.push(ctx);
+                          return ctx;
+                        };
+                        WrappedAC.prototype = OrigAC.prototype;
+                        window.AudioContext = WrappedAC;
+                        if (window.webkitAudioContext) window.webkitAudioContext = WrappedAC;
+                      }
+                      var _origPause = HTMLMediaElement.prototype.pause;
+                      HTMLMediaElement.prototype.pause = function() {
+                        if (window.__sesameBackgroundMode) return;
+                        _origPause.call(this);
+                      };
+                    })();
+                  ''' : '''
+                    var _realHiddenGet = (Object.getOwnPropertyDescriptor(Document.prototype, 'hidden') ||
+                                         Object.getOwnPropertyDescriptor(document, 'hidden') || {}).get;
+                    Object.defineProperty(document, 'hidden', {
+                      configurable: true, get: function() { return false; }
+                    });
+                    Object.defineProperty(document, 'visibilityState', {
+                      configurable: true, get: function() { return 'visible'; }
+                    });
+                    document.hasFocus = function() { return true; };
+                    document.addEventListener('visibilitychange', function(e) {
+                      if (_realHiddenGet && _realHiddenGet.call(document)) window.__sesameBackgroundMode = true;
+                      e.stopImmediatePropagation();
+                    }, true);
+                    window.addEventListener('blur', function(e) {
+                      e.stopImmediatePropagation();
+                    }, true);
+                    window.addEventListener('pagehide', function(e) {
+                      window.__sesameBackgroundMode = true;
+                      e.stopImmediatePropagation();
+                    }, true);
+                    document.addEventListener('freeze', function(e) {
+                      window.__sesameBackgroundMode = true;
+                      e.stopImmediatePropagation();
+                    }, true);
+                    (function() {
+                      window.__sesameBackgroundMode = false;
+                      window.__acInstances = [];
+                      var OrigAC = window.AudioContext || window.webkitAudioContext;
+                      if (OrigAC) {
+                        var WrappedAC = function() {
+                          var ctx = new OrigAC(...arguments);
+                          window.__acInstances.push(ctx);
+                          return ctx;
+                        };
+                        WrappedAC.prototype = OrigAC.prototype;
+                        window.AudioContext = WrappedAC;
+                        if (window.webkitAudioContext) window.webkitAudioContext = WrappedAC;
+                      }
+                      var _origPause = HTMLMediaElement.prototype.pause;
+                      HTMLMediaElement.prototype.pause = function() {
+                        if (window.__sesameBackgroundMode) return;
+                        _origPause.call(this);
+                      };
+                    })();
+                  ''',
+                  injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+                  forMainFrameOnly: false,
+                ),
+              ]),
             initialSettings: InAppWebViewSettings(
               javaScriptEnabled: true,
               userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
                   '(KHTML, like Gecko) Chrome/131.0.6778.135 Mobile Safari/537.36',
               useShouldOverrideUrlLoading: true,
               useOnDownloadStart: true,
-              mediaPlaybackRequiresUserGesture: !widget.estRadio,
+              mediaPlaybackRequiresUserGesture: false,
+              useHybridComposition: true,
             ),
             onWebViewCreated: (controller) {
               _controller = controller;
               _setupJsHandlers(controller);
             },
+            onUpdateVisitedHistory: (controller, url, androidIsReload) {
+              if (!mounted) return;
+              final urlStr = url?.toString() ?? '';
+              final estVideo = RegExp(r'(youtube\.com/(watch|shorts)|youtu\.be/)').hasMatch(urlStr);
+              if (estVideo && !_youtubeActif) {
+                _youtubeActif = true;
+                _radioChannel.invokeMethod('startYoutubePip').catchError((_) {});
+                _radioChannel.invokeMethod('startRadioService', {'title': 'YouTube'}).catchError((_) {});
+                controller.evaluateJavascript(
+                  source: 'window.__sesameForceVisible=true; window.__sesamePipVraiActif=true;');
+              } else if (estVideo && _youtubeActif) {
+                controller.evaluateJavascript(
+                  source: 'window.__sesameForceVisible=true; window.__sesamePipVraiActif=true;');
+              } else if (!estVideo && _youtubeActif) {
+                _youtubeActif = false;
+                _radioChannel.invokeMethod('stopYoutubePip').catchError((_) {});
+                _radioChannel.invokeMethod('stopRadioService').catchError((_) {});
+                controller.evaluateJavascript(
+                  source: 'window.__sesameForceVisible=false; window.__sesamePipVraiActif=false;');
+              }
+            },
             onLoadStart: (controller, url) {
+              if (!mounted) return;
               setState(() {
                 _chargement = true;
                 _erreur = null;
@@ -670,6 +786,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
             },
             onLoadStop: (controller, url) async {
               final peutReculer = await controller.canGoBack();
+              if (!mounted) return;
               setState(() {
                 _chargement = false;
                 _peutReculer = peutReculer;
@@ -680,13 +797,17 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
                 _injecterVisibiliteRadio();
                 await _demarrerServiceRadio();
               }
+              if (_youtubeActif) {
+                controller.evaluateJavascript(source: 'window.__sesameForceVisible = true;');
+              }
+              if (!mounted) return;
               await _injecterIdentifiants();
               final enAttente = _identifiantsEnAttente;
               if (enAttente != null) {
                 _identifiantsEnAttente = null;
                 await _proposerSauvegarde(enAttente['login']!, enAttente['password']!);
               }
-              _injecterCapture();
+              if (mounted) _injecterCapture();
             },
             shouldOverrideUrlLoading: (controller, navigationAction) async {
               final url = navigationAction.request.url?.toString() ?? '';
@@ -786,6 +907,7 @@ class _WebViewScreenState extends State<WebViewScreen> with WidgetsBindingObserv
             ),
         ],
       ),
+    ),
     );
   }
 }

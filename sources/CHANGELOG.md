@@ -1,3 +1,6 @@
+## 2.5
+- YouTube : lecture audio maintenue en arrière-plan et écran éteint — détection automatique lors de la navigation vers YouTube, service de premier plan activé, injection de visibilité pour contourner la mise en pause du player
+
 ## 2.4
 - Réorganisation : le séparateur ajouté (bouton +) s'insère en bas de la zone visible plutôt qu'en fin de liste
 - Export/import `.sesame` : les séparateurs sont désormais inclus dans la sauvegarde chiffrée
